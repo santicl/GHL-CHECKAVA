@@ -5,11 +5,22 @@ const cors = require('cors');
 const app = express();
 
 // Configuración de CORS más completa
+const allowedOrigins = [
+  'https://paue.com.co',
+  'https://paue.sky-hub.co'
+];
+
 app.use(cors({
-  origin: 'https://paue.com.co', // <--- mejor si defines tu origen exacto
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('No permitido por CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type'],
-  credentials: true, // Opcional: solo si usas cookies o auth
+  credentials: true
 }));
 
 // Middleware para permitir respuestas a preflight requests
