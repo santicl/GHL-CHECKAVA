@@ -7,7 +7,8 @@ const app = express();
 // Configuración de CORS más completa
 const allowedOrigins = [
   'https://paue.com.co',
-  'https://paue.sky-hub.co'
+  'https://paue.sky-hub.co',
+  'http://localhost:3001'
 ];
 
 app.use(cors({
@@ -30,7 +31,7 @@ app.options('*', cors());
 app.use(express.json());
 
 // Configuración del puerto
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 app.set('port', PORT);
 
 console.log(`🚀 Puerto configurado: ${PORT}`);

@@ -15,10 +15,13 @@ const validateDateMatches = async (req, res, next) => {
         let totalAdditionalPeople = 0;
 
         submissionsData.filter(submission => {
-            const submissionDate = submission.byn83cFhzqjbcoELPxSo;
+            const submissionDate = submission.byn83cFhzqjbcoELPxSo || submission.others.VxRYImDnl8ikmYom7hfz;
+
+            //console.log("FECHA: ", submissionDate)
             
-            const personasClient = Number(submission['8gdQMzcZPfR6G0sNkmKX']) || 0;
+            const personasClient = Number(submission.others.TiOQmVz2d8Bg5vENCD8y) || 0;
             const personasAfiliados = Number(submission['YghfEfFA7h5MW0p8qWXs']) || 0;
+            //console.log("NUMERO PERSONAS: ", personasClient)
             
             // Sumamos ambos
             const personas = personasClient + personasAfiliados;

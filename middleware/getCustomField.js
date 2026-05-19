@@ -1,39 +1,72 @@
 const axios = require("axios");
 
 function getDateCustomValues(obj) {
-  return obj.name.replace('disponible-', '');
+  // Aseguramos que obj y obj.name existan antes de hacer el replace para evitar caídas
+  return obj && obj.name ? obj.name.replace('disponible-', '') : '';
 }
 
 const getCustomFields = async (req, res, next) => {
-    const { fecha } = req.body
-    const API_CUSTOM_FIELDS = 'https://rest.gohighlevel.com/v1/custom-values'
+    const { fecha } = req.body;
+    const locationId = process.env.LOCATION_ID_PAUE; // Requisito de la API v2
+
+    //console.log("locationID: ", locationId)
+    
+    // CORRECCIÓN: Nuevo endpoint oficial de Custom Values en la v2
+    const API_CUSTOM_VALUES = `https://services.leadconnectorhq.com/locations/${locationId}/customValues`;
+
+    if (!locationId) {
+        return res.status(400).json({ error: 'GHL_LOCATION_ID es requerido en las variables de entorno' });
+    }
 
     try {
-        const response = await axios.get(API_CUSTOM_FIELDS, {
+        const response = await axios.get(API_CUSTOM_VALUES, {
             headers: {
-                'Authorization': `Bearer ${process.env.API_KEY_PAUE}`,
-                'Content-Type': 'application/json'
-            }
+                'Version': '2021-07-28', // Requisito obligatorio en la v2
+                'Authorization': `Bearer ${process.env.ACCESS_TOKEN_PAUE}`, // Tu token v2 (pit-...)
+                'Accept': 'application/json'
+            },
         });
 
-        if (!response.data) {
-            return res.status(500).json({ error: 'No se pudo obtener los datos' });
+        //console.log("RESPONSE: ", response)
+
+        if (!response.data || !response.data.customValues) {
+            return res.status(500).json({ error: 'No se recibieron Custom Values de GHL' });
         }
 
-        const customValues = response.data.customValues
+        const customValues = response.data.customValues;
         
+        // Inicializamos la variable en req.body para que no quede undefined si no encuentra coincidencias
+        req.body.placesAvailable = 0; 
+
         customValues.forEach(custom => {
-            const dateCustom = getDateCustomValues(custom)
+            const dateCustom = getDateCustomValues(custom);
+            //console.log("custom: ", custom)
             if (fecha === dateCustom) {
-                req.body.placesAvailable = parseInt(custom.value)
-            } else if(custom.name === 'cupos-diarios') {
-                req.body.placesAvailable = parseInt(custom.value)
+                
+                req.body.placesAvailable = parseInt(custom.value) || 0;
+            } else if (custom.name === 'cupos-diarios') {
+                // Si ya se asignó la fecha específica, no la sobrescribimos con el genérico
+                if (!req.body.placesAvailable || req.body.placesAvailable === 0) {
+                    req.body.placesAvailable = parseInt(custom.value) || 0;
+                }
             }
         });
-        next()
+
+        // Éxito: Pasamos al siguiente middleware/controlador
+        next();
+
     } catch (error) {
-        console.error('X Error al obtener los CUSTOM FIELDS')
+        // DETALLE CRÍTICO: Log detallado para saber exactamente qué falló (401, 404, Timeout...)
+        console.error('❌ Error real al obtener los CUSTOM VALUES en v2:');
+        console.error(`Status: ${error.response?.status} | Mensaje: ${error.response?.data?.message || error.message}`);
+        
+        // SOLUCIÓN AL CUELGUE: Si falla la API, respondemos con error o llamamos a next() 
+        // dependiendo de tu regla de negocio. Aquí devolvemos un 500 para alertar a tu cliente.
+        return res.status(error.response?.status || 500).json({ 
+            error: 'Error interno al consultar Custom Values en GHL',
+            details: error.response?.data || error.message 
+        });
     }
 }
 
-module.exports = getCustomFields
+module.exports = getCustomFields;
